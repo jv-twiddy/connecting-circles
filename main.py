@@ -32,9 +32,7 @@ class Circle:
         self.x +=x
         self.y +=y
 
-circles = []
-circles.append( Circle(50,50,20))
-circles.append( Circle(80,30,10))
+
 #circles.append( Circle(100,70,30))
 
 # make arrays of borders for them to draw
@@ -75,7 +73,7 @@ def calc_connection_slopes(circles,connections,minma_coef = 1):
         distance = m.sqrt(dy*dy+dx*dx)
         # calc minma 
         if distance !=0:
-            minma = (lowest_r/distance)*minma_coef
+            minma = lowest_r / 1.2
         else:
             minma = lowest_r 
 
@@ -171,25 +169,30 @@ def connected_boarder(circles,connections,divisions:int =1000):
     start = [c1.get_x()-c1.get_r(),c1.get_y()]
     current = start
     # make a table of possible comparisons 
-    # [position[x,y], minimum distance, current distance]
+    # [position[x,y], minimum distance, current distance, is circle]
     for x in range(divisions):
         table = []
         for circle in circles:
             distance = get_distance(current,circle.get_cords())
-            table.append([circle.get_cords(),circle.get_r(),distance])
-        # find which we are closest too 
+            table.append([circle.get_cords(),circle.get_r(),distance, True])
+        # find which we should reference from  
         for connection in connections:
             minma = find_con_minma(current,circles[connection[0]],circles[connection[1]])
             distance = get_distance(current,minma) 
-            table.append([minma,connection[3],distance])
+            table.append([minma,connection[3],distance,False])
         
         closest = 0
+        lowest = table[0][2]
         for y in range(len(table)):
-            if y == 0:
+            # if we are in just about the radius of a circle we should use that
+            if (table[y][2] <= table[y][1] and table[y][3]): # we will probably want an OR here to amke it get off the circle 
                 lowest = table[y][2]
-            else:
-                if table[y][2] < lowest:
-                    closest = y
+                closest = y
+            elif table[y][2] < lowest: # 
+                lowest = table[y][2]
+                closest = y
+
+                    
         # now with the closest we find the gradient and put it at the correct distance from it 
         # OR 
         # we find the tangent and move in that direction? 
@@ -199,9 +202,7 @@ def connected_boarder(circles,connections,divisions:int =1000):
             angle = m.pi / 2
         else:
             angle = m.atan(new_direction)
-        # move along direction 
-        # we need to check if we have gone "over the top" 
-        # which may become more complicated with more points  
+        # we now find the two possible directions and move towards the one with the highest dot product with the previous 
 
         right_vect = [step*m.cos(angle),step*m.sin(angle)]
         left_vect = [-step*m.cos(angle),-step*m.sin(angle)]
@@ -210,14 +211,30 @@ def connected_boarder(circles,connections,divisions:int =1000):
         left_dot_prod = prev_dir[0]*left_vect[0]+prev_dir[1]*left_vect[1]
         
         if right_dot_prod>left_dot_prod:
-            next = [ current[0]+right_vect[0],current[1]+right_vect[1]]
+            mynext = [ current[0]+right_vect[0],current[1]+right_vect[1]]
             prev_dir = [right_vect[0],right_vect[1]]
         else: 
-            next = [ current[0]+left_vect[0],current[1]+left_vect[1]]
+            mynext = [ current[0]+left_vect[0],current[1]+left_vect[1]]
             prev_dir = [left_vect[0],left_vect[1]]
                 
+        # find the differenece from the nearest and move it in that direction 
+        distance = get_distance(mynext, table[closest][0])
+        # ratio of how far it shoud be 
+        if distance == 0:
+            ratio_d = 1
+        else:
+            ratio_d = table[closest][1]/distance    
+        # get the vector for the difference between 
+        diff_closest = [mynext[0]-table[closest][0][0], mynext[1]-table[closest][0][1]]
+        # the location of where it should be
+        location = [table[closest][0][0]+diff_closest[0]*ratio_d,table[closest][0][1]+diff_closest[1]*ratio_d]
+        # 
+        midway = [location[0]*0.2+mynext[0]*0.8,location[1]*0.2+mynext[1]*0.8]
+        
+        #should_be = [change[0]*ratio_d,change[1]*ratio_d]
+        
         boarder.append([current[0],current[1]])
-        current = [next[0],next[1]]
+        current = [midway[0],midway[1]]
 
     # for the connection we need to find the point at which we would be through the parrallel 
     #print(boarder)
@@ -254,35 +271,51 @@ clock = py.time.Clock()
 #test_surface = py.Surface([25,45])
 #test_surface_rect = test_surface.get_rect(center=screen_rect.center)
 #test_surface.fill(WHITE)
-point_a = [50, 50]
-  
+point_a = [50, 50] # debug guy 
+
+circles = []
+circles.append( Circle(50,50,20))
+circles.append( Circle(80,30,10))
+
+con_slopes = calc_connection_slopes(circles, [[0,1]])
+circlei = 0
+
 running = True
 while running:
     for event in py.event.get():
         if event.type == py.QUIT:
             running = False
+        if event.type == py.KEYDOWN: # CHANGING CIRCLE 
+            if event.key == py.K_q:
+                circlei +=1
+                if circlei == len(circles):
+                    circlei = 0
+            if event.key == py.K_a: # add another circle
+                s_circle = circles[circlei] 
+                circles.append(Circle(s_circle.get_x(),s_circle.get_y(),s_circle.get_r()))
+                con_slopes.append([circlei,len(circles)-1])
+                circlei = len(circles)-1
+
     keys = py.key.get_pressed()
-
+                    # scaling 
     if keys[py.K_w]:
-        for circle in circles:
-            circle.scale(1.1)
+        circles[circlei].scale(1.1)
     if keys[py.K_s]:
-        for circle in circles:
-            circle.scale(1/1.1)
+        circles[circlei].scale(1/1.1)
+                    # movement
     if keys[py.K_UP]:
-        for circle in circles:
-            circle.move(0,-3)
+        circles[circlei].move(0,-3)
     if keys[py.K_DOWN]:
-        for circle in circles:
-            circle.move(0,3)
+        circles[circlei].move(0,3)
     if keys[py.K_LEFT]:
-        for circle in circles:
-            circle.move(-3,0)
+        circles[circlei].move(-3,0)
     if keys[py.K_RIGHT]:
-        for circle in circles:
-            circle.move(3,0)
+        circles[circlei].move(3,0)
+                    
+        
 
-    con_slopes = calc_connection_slopes(circles, [[0,1]])
+    print(circlei)
+    con_slopes = calc_connection_slopes(circles, con_slopes)
     #print("conslopes:"+ str(con_slopes))
 
     point_b = find_con_minma(point_a,circles[0],circles[1])
@@ -290,6 +323,7 @@ while running:
     boarders = []
     for circle in circles:
         boarders.append(make_boarder(circle))
+    con_slopes = calc_connection_slopes(circles, con_slopes)
     boarders.append(connected_boarder(circles, con_slopes))
 
     #clear the screen
