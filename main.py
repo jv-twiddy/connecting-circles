@@ -261,6 +261,51 @@ def connected_boarder(circles,connections,divisions:int =1000):
     print("end")
     return boarder
 
+def get_dif(a,b):
+    return [ b[0]-a[0], b[1]-a[1]]
+
+def da_to_new(start,distance, angle):
+    return [ start[0]+distance*m.cos(angle),start[1]+distance*m.sin(angle)]
+
+#
+def create_connection(circles, connection, divisions=1000):
+    bars = []
+    # get the difference between the two points 
+    a = circles[connection[0]].get_cords()
+    b = circles[connection[1]].get_cords()
+
+    ab_diff = get_dif(a,b) # a->b
+    ab_step = [ab_diff[0]/divisions, ab_diff[1]/divisions]
+    ab_grad = points_to_grad(a,b)
+    inv_grad = get_inverse(ab_grad)
+    if inv_grad == None:
+        angle = m.pi/2
+    else:
+        angle = m.atan(inv_grad)
+    mod = 1
+    a_r = circles[connection[0]].get_r() - mod
+    b_r = circles[connection[1]].get_r() - mod
+
+    r_diff = (b_r - a_r) 
+    
+    # now we need to step along with divisions 
+    for x in range(divisions):
+        position = [a[0]+x*ab_step[0],a[1]+x*ab_step[1]]
+        # we should find the distance for that it should be from the position
+        # for now lets just say straight line between the two radius 
+        term = ((a_r-b_r)/2)*m.sin(2*m.pi*x/divisions +m.pi/2) + ((a_r-b_r)/2)
+        if a_r > b_r:
+            min = b_r
+        else:
+            min = a_r
+        distance = term  # special equation 
+         
+
+        top = da_to_new(position,distance, angle)
+        bottom = da_to_new(position,-distance, angle)
+        bars.append([top,bottom])
+
+    return bars
 
 
 # boarders = []
@@ -273,6 +318,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0,255, 0)
+BLUE = (0,0,255)
   
 # initialize pygame
 py.init()
@@ -335,37 +381,30 @@ while running:
         
 
     print(circlei)
-    con_slopes = calc_connection_slopes(circles, con_slopes)
+
     #print("conslopes:"+ str(con_slopes))
 
-    point_b = find_con_minma(point_a,circles[0],circles[1])
+
         
-    boarders = []
-    for circle in circles:
-        boarders.append(make_boarder(circle))
-    con_slopes = calc_connection_slopes(circles, con_slopes)
-    boarders.append(connected_boarder(circles, con_slopes))
+    connections = []
+    for con in con_slopes:
+        connections.append(create_connection(circles,con))
 
     #clear the screen
     screen.fill(WHITE)
 
     # draw our screen here
-    for boarder in boarders:
+    for connection in connections:
         prev = None 
-        for point in boarder:
-            if prev == None:
-                prev = point
-                continue
-            py.draw.aaline(screen,BLACK,prev,point)
-            prev = point
-        # draw the connection between first and last 
-        py.draw.aaline(screen,BLACK,boarder[-1],boarder[0]) 
+        for pair in connection:  
+        # draw the bars
+            py.draw.aaline(screen,BLACK,pair[0],pair[1]) 
 
     for x in range(len(circles)):
         if x == circlei:
-            py.draw.circle(screen,RED,circles[x].get_cords(),4)
+            py.draw.circle(screen,RED,circles[x].get_cords(),circles[x].get_r())
         else:    
-            py.draw.circle(screen,GREEN,circles[x].get_cords(),4)
+            py.draw.circle(screen,BLUE,circles[x].get_cords(),circles[x].get_r())
     
     # flip() updates the screen to make our changes visible
     py.display.flip()
