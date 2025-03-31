@@ -149,10 +149,42 @@ def get_sign(num):
         return 1
     return -1
 
+def are_close(a,b, epsilon=0.001):
+    # make a upper and lower a
+    a_upper = [ a[0]+epsilon, a[1]+epsilon]
+    a_lower = [a[0]-epsilon, a[1]-epsilon]
+    if (b[0]>a_lower[0] and b[0]<a_upper[0]) and (b[1]>a_lower[1] and b[1]<a_upper[1]):
+        return True
+    return False
+
+def find_closest(circles, connections, current, step):
+    # [position[x,y], minimum distance, current distance, is circle]
+    table = []
+    for circle in circles:
+        distance = get_distance(current,circle.get_cords())
+        table.append([circle.get_cords(),circle.get_r(),distance, True])
+    # find which we should reference from  
+    for connection in connections:
+        minma = find_con_minma(current,circles[connection[0]],circles[connection[1]])
+        distance = get_distance(current,minma) 
+        table.append([minma,connection[3],distance,False])
+    
+    closest = 0
+    inside = False
+    lowest = table[0][2]
+    for y in range(len(table)):
+        # if we are in just about the radius of a circle we should use that
+        if (table[y][2] <= table[y][1] and table[y][3]): # we will probably want an OR here to make it get off the circle 
+            lowest = table[y][2]
+            closest = y
+            inside = True
+        elif table[y][2] < lowest and not inside: # 
+            lowest = table[y][2]
+            closest = y
+    return table, closest
+
 def connected_boarder(circles,connections,divisions:int =1000):
     boarder = []
-    flipped = False
-    hold = 0 
     perimeter = 0
     for circle in circles:
         perimeter += circle.get_r()*m.pi 
@@ -169,30 +201,12 @@ def connected_boarder(circles,connections,divisions:int =1000):
     start = [c1.get_x()-c1.get_r(),c1.get_y()]
     current = start
     # make a table of possible comparisons 
-    # [position[x,y], minimum distance, current distance, is circle]
-    for x in range(divisions):
-        table = []
-        for circle in circles:
-            distance = get_distance(current,circle.get_cords())
-            table.append([circle.get_cords(),circle.get_r(),distance, True])
-        # find which we should reference from  
-        for connection in connections:
-            minma = find_con_minma(current,circles[connection[0]],circles[connection[1]])
-            distance = get_distance(current,minma) 
-            table.append([minma,connection[3],distance,False])
-        
-        closest = 0
-        lowest = table[0][2]
-        for y in range(len(table)):
-            # if we are in just about the radius of a circle we should use that
-            if (table[y][2] <= table[y][1] and table[y][3]): # we will probably want an OR here to amke it get off the circle 
-                lowest = table[y][2]
-                closest = y
-            elif table[y][2] < lowest: # 
-                lowest = table[y][2]
-                closest = y
+    finished = False
+    x = 0
+    while not finished:
+        # tabel entry: [position[x,y], minimum distance, current distance, is circle]
+        table, closest = find_closest(circles,connections,current,step)  
 
-                    
         # now with the closest we find the gradient and put it at the correct distance from it 
         # OR 
         # we find the tangent and move in that direction? 
@@ -236,6 +250,12 @@ def connected_boarder(circles,connections,divisions:int =1000):
         boarder.append([current[0],current[1]])
         current = [midway[0],midway[1]]
 
+        # upper limit:
+        x+=1 
+        if x == divisions*2:
+            break
+        if x>100 and are_close(current,boarder[0],step*2):
+            break
     # for the connection we need to find the point at which we would be through the parrallel 
     #print(boarder)
     print("end")
@@ -341,8 +361,12 @@ while running:
         # draw the connection between first and last 
         py.draw.aaline(screen,BLACK,boarder[-1],boarder[0]) 
 
-    py.draw.circle(screen,RED,circles[0].get_cords(),1)
-    py.draw.circle(screen,RED,circles[1].get_cords(),1)
+    for x in range(len(circles)):
+        if x == circlei:
+            py.draw.circle(screen,RED,circles[x].get_cords(),4)
+        else:    
+            py.draw.circle(screen,GREEN,circles[x].get_cords(),4)
+    
     # flip() updates the screen to make our changes visible
     py.display.flip()
       
