@@ -267,6 +267,8 @@ def get_dif(a,b):
 def da_to_new(start,distance, angle):
     return [ start[0]+distance*m.cos(angle),start[1]+distance*m.sin(angle)]
 
+def pyth_len(ab:list):
+    return m.sqrt(ab[0]**2+ab[1]**2)
 #
 def create_connection(circles, connection, divisions=1000):
     bars = []
@@ -274,7 +276,9 @@ def create_connection(circles, connection, divisions=1000):
     a = circles[connection[0]].get_cords()
     b = circles[connection[1]].get_cords()
 
-    ab_diff = get_dif(a,b) # a->b
+    
+
+    ab_diff = get_dif(a,b) # a->b length
     ab_step = [ab_diff[0]/divisions, ab_diff[1]/divisions]
     ab_grad = points_to_grad(a,b)
     inv_grad = get_inverse(ab_grad)
@@ -286,20 +290,21 @@ def create_connection(circles, connection, divisions=1000):
     a_r = circles[connection[0]].get_r() - mod
     b_r = circles[connection[1]].get_r() - mod
 
-    r_diff = (b_r - a_r) 
-    
+    r_diff = (b_r - a_r)
+    scale = abs(pyth_len(ab_diff)/(b_r+a_r))*0.5
+    if scale>1:
+        scale =1
+    print(scale,"scale")
+    # med_rad = (a_r-b_r)/2 # not a med 
     # now we need to step along with divisions 
     for x in range(divisions):
         position = [a[0]+x*ab_step[0],a[1]+x*ab_step[1]]
         # we should find the distance for that it should be from the position
         # for now lets just say straight line between the two radius 
-        term = ((a_r-b_r)/2)*m.sin(2*m.pi*x/divisions +m.pi/2) + ((a_r-b_r)/2)
-        if a_r > b_r:
-            min = b_r
-        else:
-            min = a_r
-        distance = term  # special equation 
-         
+        
+        # distance = med_rad*m.sin(2*m.pi*x/divisions +m.pi/2) + med_rad
+        distance = a_r + r_diff*(x/divisions)
+        distance = distance - distance*m.sin(m.pi*x/divisions)*scale
 
         top = da_to_new(position,distance, angle)
         bottom = da_to_new(position,-distance, angle)
@@ -385,7 +390,7 @@ while running:
     #print("conslopes:"+ str(con_slopes))
 
 
-        
+        # make the connections 
     connections = []
     for con in con_slopes:
         connections.append(create_connection(circles,con))
@@ -393,9 +398,9 @@ while running:
     #clear the screen
     screen.fill(WHITE)
 
-    # draw our screen here
+    # draw out screen here
     for connection in connections:
-        prev = None 
+        # prev = None 
         for pair in connection:  
         # draw the bars
             py.draw.aaline(screen,BLACK,pair[0],pair[1]) 
