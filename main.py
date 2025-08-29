@@ -276,6 +276,7 @@ def create_connection(circles, connection, divisions=1000):
     a = circles[connection[0]].get_cords()
     b = circles[connection[1]].get_cords()
 
+    # lets try modifying the location
     
 
     ab_diff = get_dif(a,b) # a->b length
